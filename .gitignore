@@ -1,0 +1,8 @@
+node_modules/
+*.zip
+.env
+.env.*
+backup*.json
+trijay-backup-*.json
+techpro-*.json
+planilha-local*.json
