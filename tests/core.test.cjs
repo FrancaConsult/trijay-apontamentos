@@ -1,0 +1,9 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const C=require('../core.js');
+const projects=C.seed();
+const entry={id:'e1',date:'2026-11-18',projectId:projects[0].id,start:'09:00',end:'10:30',nextDay:false,activity:'Teste ZHYP',status:'ready'};
+test('duração em minutos e horário atravessando meia-noite',()=>{assert.equal(C.duration('09:00','10:30',false),90);assert.equal(C.duration('23:00','00:00',true),60);assert.equal(C.duration('23:00','00:00',false),0);assert.equal(C.duration('10:00','09:00',false),0);assert.equal(C.duration('10:00','11:00',true),0);assert.equal(C.duration('24:00','01:00',true),0);assert.equal(C.duration('00:00','00:00',true),1440);});
+test('datas reais e descrição da coluna H',()=>{assert.equal(C.validDate('2026-02-29'),false);assert.equal(C.validDate('2028-02-29'),true);assert.equal(C.description(entry,projects[0]),'18/11/2026 - [INTERNO] Teste ZHYP - 1h30');assert.equal(C.hours(30),'0h30');assert.equal(C.sum([entry,entry]),180);});
+test('backup mantém períodos idênticos com IDs distintos',()=>{const data={schemaVersion:1,projects,entries:[entry,{...entry,id:'e2'}]};assert.equal(C.validateBackup(data).entries.length,2);assert.throws(()=>C.validateBackup({...data,entries:[entry,entry]}));assert.throws(()=>C.validateBackup({...data,entries:[{...entry,projectId:'missing'}]}));assert.throws(()=>C.validateBackup({...data,entries:[{...entry,status:'invalid'}]}));assert.throws(()=>C.validateBackup({...data,entries:[{...entry,nextDay:'false'}]}));});
+test('CSV mantém coluna H, total diário e neutraliza fórmulas',()=>{const csv=C.csv([{...entry,activity:'=SUM(A1)'}],projects);const rows=csv.slice(1).split('\r\n');assert.equal(rows.length,2);assert.match(rows[0],/"Total Dia";"Linha para Sistema"/);assert.match(rows[1],/"'\=SUM\(A1\)"/);assert.match(rows[1],/"1,5";"18\/11\/2026 - \[INTERNO\]/);});
