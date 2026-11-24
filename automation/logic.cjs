@@ -57,4 +57,16 @@ function resolvePeriod(env,now=new Date()) {
   if((Date.parse(end+'T12:00:00Z')-Date.parse(from+'T12:00:00Z'))/86400000>30)throw Error('O período manual deve ter no máximo 31 dias.');
   return {from,to:end};
 }
-module.exports={previousWeek,resolvePeriod,projectFor,makePlan,matching,normalize};
+function allowedDuration(configs,date,minutes) {
+  for(const config of configs) {
+    const rule=config.userAppointmentConfig;
+    if(!Array.isArray(rule?.dates)||!rule.dates.some(d=>String(d.date).slice(0,10)===date)||!Array.isArray(rule.interval))continue;
+    const option=rule.interval.find(value=>{
+      const match=/^(\d{1,2}):([0-5]\d)(?::00)?$/.exec(String(value));
+      return match&&Number(match[1])*60+Number(match[2])===minutes;
+    });
+    if(option!==undefined)return option;
+  }
+  return null;
+}
+module.exports={previousWeek,resolvePeriod,allowedDuration,projectFor,makePlan,matching,normalize};
