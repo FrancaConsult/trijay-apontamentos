@@ -1,34 +1,36 @@
 # Trijay Apontamentos
 
-Aplicativo HTML, CSS e JavaScript, sem instalação, para cadastro de projetos, apontamentos diários e resumo de horas por cliente e projeto.
+Aplicativo privado de projetos, apontamentos diários e resumo de horas, publicado no [GitHub Pages](https://francaconsult.github.io/trijay-apontamentos/). Os registros ficam no Supabase com acesso restrito a valdemir.franca@trijay.tech. O código é público; os registros e credenciais não são publicados no repositório.
 
-## Abrir
+## Primeiro acesso
 
-Abra `index.html` no Chrome ou publique a pasta no GitHub Pages. Em GitHub: **Settings → Pages → Deploy from a branch → main → /(root) → Save**.
+1. No Supabase, Authentication → Users → Add user → Create new user: crie o usuário com o e-mail autorizado e uma senha exclusiva. Confirme o usuário nesse cadastro administrativo. Não envie a senha no chat nem a coloque no GitHub.
+2. Entre no aplicativo e escolha **Importar dados deste navegador**, usando o Chrome onde estão os registros anteriores. A importação é única e preserva IDs e status. Se estiver em outro navegador, restaure seu backup JSON.
+3. Em Projetos, confira o nome exato do projeto Tech Pro. Em Apontamentos, revise data, horários e atividade; marque como **Pronto para cadastro**. A duração vem dos horários, inclusive na virada do dia. A descrição segue a coluna H.
+4. A opção Atualizar dados busca mudanças feitas pela rotina ou por outro dispositivo. Gravações simultâneas são recusadas para evitar sobrescrita. Faça backups regularmente.
 
-## Usar
+## Rotina semanal
 
-1. Em **Projetos**, confira os projetos iniciais e cadastre os seus. O campo **Projeto no Tech Pro** deve conter o nome exato usado no sistema.
-2. Em **Apontamentos**, cadastre data, projeto, início, fim e atividade. Para um período como 23:00–00:00, marque **Termina no dia seguinte**. Cada período é um registro separado.
-3. A descrição é gerada no formato `DD/MM/AAAA - [CLIENTE] Atividade - 1h30`, equivalente à coluna H da planilha.
-4. Marque como **Pronto para cadastro** quando terminar de revisar. **Exportar para Tech Pro** baixa um JSON apenas com os registros prontos e dentro dos filtros. A exportação não grava no Tech Pro nem muda o status para cadastrado.
-5. Depois da confirmação de gravação no Tech Pro, edite o status para **Cadastrado no Tech Pro**.
-6. Em **Resumo de horas**, filtre o período e consulte os totais por cliente e projeto.
+O workflow **Apontamentos semanais Tech Pro** roda às segundas-feiras às 11:00 UTC (08:00 em São Paulo). O GitHub pode atrasar o início do agendamento. Busca apenas a semana anterior, de segunda a domingo, com status Pronto para cadastro. Rascunhos não são enviados.
 
-## Dados e backup
+O workflow usa três GitHub Actions repository secrets:
 
-Os dados ficam no armazenamento local deste navegador e endereço. Abrir em outro computador, navegador ou endereço não compartilha os dados. A limpeza dos dados do navegador pode apagá-los. Use **Exportar backup** regularmente. **Restaurar backup** valida e substitui os dados após confirmação.
+- TECHPRO_USERNAME
+- TECHPRO_PASSWORD
+- SUPABASE_SECRET_KEY: chave secreta de backend do projeto Supabase. Nunca use essa chave no navegador, em arquivos ou em mensagens. A chave publicável em config.js é própria para uso público; RLS e funções autenticadas restringem os dados.
 
-O aplicativo começa sem apontamentos históricos. Os projetos iniciais refletem os destinos anteriormente confirmados; não representam integração ou consulta ao Tech Pro. O nome Trijay é usado para identificar o aplicativo solicitado, sem dependência de ativos oficiais de marca.
+Execute primeiro Actions → Apontamentos semanais Tech Pro → Run workflow com Somente conferir marcado. Depois de conferir o resultado, a execução manual com a opção desmarcada realiza cadastros. O agendamento realiza cadastros. Confira falhas em Actions e habilite notificações do GitHub para workflows.
 
-O CSV segue as colunas A–H da planilha original, com campos adicionais de projeto Tech Pro, status e ID. Datas são locais, durações usam minutos inteiros e os totais não acumulam erros decimais. A coluna Total Dia considera os registros da exportação.
+Cada gravação é verificada consultando os registros persistidos no Tech Pro antes de marcar Cadastrado. Registros existentes são conciliados por data, projeto, duração e descrição, preservando a quantidade de períodos idênticos. Uma tentativa sem confirmação bloqueia nova criação até revisão manual; o recibo correspondente em timesheet_automation_receipts permite investigar. Nunca remova um recibo sem conferir o destino. O aplicativo não edita nem exclui registros do Tech Pro automaticamente. Alterações após cadastro exigem ajuste no destino.
 
-## Cadastro semanal automático
+Chamados GLPI/GPLI usam AMS do cliente; GLPI 7014 de Taurus Helmets usa Integração GoDeep Hub. CBC Interno Teste ZHYP usa Interno. Não são alteradas datas ou projetos para contornar limites.
 
-GitHub Pages publica o aplicativo, mas **não recebe nem armazena os registros digitados**. Um agente agendado não consegue ler os dados locais deste navegador apenas pelo link público. Nesta versão, exporte o JSON e disponibilize-o em uma fonte acessível ao agente.
+## Banco e segurança
 
-Para eliminar esse envio manual, será necessário adicionar armazenamento compartilhado autenticado (por exemplo, um serviço com banco de dados e API) e fornecer acesso autorizado ao agente. Não coloque tokens ou senhas no código HTML/JavaScript ou no repositório. Não publique apontamentos ou backups no repositório público sem decidir explicitamente expor esses dados.
+O arquivo supabase/schema.sql cria duas tabelas privadas e funções com permissões mínimas. O navegador só lê o próprio documento e salva com revisão otimista. Recibos e funções da rotina são exclusivos do serviço. A chave secreta de backend tem acesso privilegiado ao projeto: limite o acesso ao repositório e rotacione-a se houver exposição.
+
+Nenhum registro de produção deve ser incluído em commits, testes, logs ou artefatos públicos. O workflow mostra somente período e contagens, sem descrições, senhas ou tokens. Não há garantia de disponibilidade contínua dos planos gratuitos.
 
 ## Validação
 
-Execute `node --test tests/core.test.cjs`. Os testes cobrem duração, virada de dia, datas, descrição, exportação CSV e validação do backup.
+Execute node --test tests/*.cjs. Cobertura: horários, datas, coluna H, exportação, backup, semana em São Paulo, AMS e exceções, multiplicidade e conciliação. A integração real requer usuário, dados importados e os três segredos.
