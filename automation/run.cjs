@@ -24,7 +24,7 @@ async function run({env=process.env,now=new Date(),call=request,log=console.log}
   const workspace=workspaces[0], period=previousWeek(now), plan=makePlan(workspace.document,period);
   const pending=plan.filter(i=>i.entry.status==='ready');
   log(`Período: ${period.from} a ${period.to}. Prontos: ${pending.length}. Modo: ${dry?'conferência':'cadastro'}.`);
-  if(!pending.length) return;
+  if(!pending.length&&!dry) return;
   const login=await call(TP,'/autentication/login',{method:'POST',data:{user:env.TECHPRO_USERNAME,password:env.TECHPRO_PASSWORD,log:'',platform:'WEB',language:'PTBR'}});
   const auth=login.result;
   if(!auth?.token||!Number.isInteger(auth.idUser)) throw Error('Não foi possível autenticar no Tech Pro.');
