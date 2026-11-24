@@ -1,0 +1,33 @@
+name: Apontamentos semanais Tech Pro
+on:
+  schedule:
+    - cron: '0 11 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Somente conferir, sem cadastrar'
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: techpro-timesheet
+  cancel-in-progress: false
+jobs:
+  timesheet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Validar regras
+        run: node --test tests/*.cjs
+      - name: Conferir e cadastrar a semana anterior
+        env:
+          TECHPRO_USERNAME: ${{ secrets.TECHPRO_USERNAME }}
+          TECHPRO_PASSWORD: ${{ secrets.TECHPRO_PASSWORD }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
+        run: node automation/run.cjs
