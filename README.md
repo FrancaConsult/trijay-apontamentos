@@ -4,10 +4,18 @@ Aplicativo privado de projetos, apontamentos diários e resumo de horas, publica
 
 ## Primeiro acesso
 
-1. No Supabase, Authentication → Users → Add user → Create new user: crie o usuário com o e-mail autorizado e uma senha exclusiva. Confirme o usuário nesse cadastro administrativo. Não envie a senha no chat nem a coloque no GitHub.
-2. Entre no aplicativo e escolha **Importar dados deste navegador**, usando o Chrome onde estão os registros anteriores. A importação é única e preserva IDs e status. Se estiver em outro navegador, restaure seu backup JSON.
+1. A conta autorizada no Supabase é valdemir.franca@trijay.tech. No aplicativo, clique em **Enviar link de acesso** e abra o link recebido por e-mail. Não há senha para digitar ou redefinir no aplicativo. O envio não cria novas contas. Links expirados ou já usados exigem um novo envio.
+2. Após entrar pelo link, escolha **Importar dados deste navegador**, usando o Chrome onde estão os registros anteriores. A importação é única e preserva IDs e status. Se estiver em outro navegador, restaure seu backup JSON.
 3. Em Projetos, confira o nome exato do projeto Tech Pro. Em Apontamentos, revise data, horários e atividade; marque como **Pronto para cadastro**. A duração vem dos horários, inclusive na virada do dia. A descrição segue a coluna H.
 4. A opção Atualizar dados busca mudanças feitas pela rotina ou por outro dispositivo. Gravações simultâneas são recusadas para evitar sobrescrita. Faça backups regularmente.
+
+## Envio dos links de acesso
+
+O Supabase precisa de um serviço SMTP configurado para enviar os links ao e-mail autorizado. A opção escolhida foi o Brevo gratuito. A configuração real do envio ainda depende da ativação da conta Brevo e do cadastro das credenciais no Supabase.
+
+Em Supabase → Authentication → Emails → SMTP Settings, use o remetente validado no Brevo, nome Trijay Apontamentos, host smtp-relay.brevo.com, porta 465 e o SMTP login exibido pelo Brevo. No campo Password, cadastre uma **chave SMTP**, não a senha do Brevo nem uma chave de API. O próprio usuário deve criar e cadastrar essa credencial, sem enviá-la pelo chat ou incluí-la no repositório.
+
+Depois de salvar e testar o envio, o login por link mantém as mesmas regras privadas do banco. Não habilite leitura ou escrita anônima nas tabelas. O destinatário é fixo no código e também é verificado pelo banco.
 
 ## Rotina semanal
 
