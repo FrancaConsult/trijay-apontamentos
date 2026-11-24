@@ -45,9 +45,12 @@ function makePlan(document, period) {
   }).sort((a,b)=>a.entry.date.localeCompare(b.entry.date)||a.entry.start.localeCompare(b.entry.start)||a.entry.id.localeCompare(b.entry.id));
 }
 function matching(row,item,projectId) {
-  const time=String(row.appointmentTime??'').split(':');
-  const minutes=(time.length===2 || (time.length===3&&Number(time[2])===0)) ? Number(time[0])*60+Number(time[1]) : NaN;
+  const minutes=techproMinutes(row.appointmentTime);
   return !row.deleted && String(row.project)===String(projectId) && String(row.appointDate).slice(0,10)===item.entry.date && minutes===item.minutes && decode(row.notes).replace(/\s+/g,' ').trim()===item.notes.replace(/\s+/g,' ').trim();
+}
+function techproMinutes(value) {
+  const match=/^(\d{1,2})[h:]([0-5]\d)(?::00)?$/i.exec(String(value??''));
+  return match?Number(match[1])*60+Number(match[2]):NaN;
 }
 function resolvePeriod(env,now=new Date()) {
   const from=String(env.MANUAL_FROM||'').trim(), to=String(env.MANUAL_TO||'').trim();
@@ -62,8 +65,7 @@ function allowedDuration(configs,date,minutes) {
     const rule=config.userAppointmentConfig;
     if(!Array.isArray(rule?.dates)||!rule.dates.some(d=>String(d.date).slice(0,10)===date)||!Array.isArray(rule.interval))continue;
     const option=rule.interval.find(value=>{
-      const match=/^(\d{1,2}):([0-5]\d)(?::00)?$/.exec(String(value));
-      return match&&Number(match[1])*60+Number(match[2])===minutes;
+      return techproMinutes(value)===minutes;
     });
     if(option!==undefined)return option;
   }
