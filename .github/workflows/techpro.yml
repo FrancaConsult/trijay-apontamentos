@@ -8,6 +8,14 @@ on:
         description: 'Somente conferir, sem cadastrar'
         type: boolean
         default: true
+      from_date:
+        description: 'Data inicial opcional (AAAA-MM-DD). Vazio: semana anterior.'
+        type: string
+        required: false
+      to_date:
+        description: 'Data final opcional (AAAA-MM-DD). Vazio: igual à inicial.'
+        type: string
+        required: false
 permissions:
   contents: read
 concurrency:
@@ -30,4 +38,6 @@ jobs:
           TECHPRO_PASSWORD: ${{ secrets.TECHPRO_PASSWORD }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
+          MANUAL_FROM: ${{ github.event_name == 'workflow_dispatch' && inputs.from_date || '' }}
+          MANUAL_TO: ${{ github.event_name == 'workflow_dispatch' && inputs.to_date || '' }}
         run: node automation/run.cjs
