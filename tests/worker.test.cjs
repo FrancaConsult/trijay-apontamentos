@@ -1,0 +1,53 @@
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const {run}=require('../automation/run.cjs');
+const T=require('../core.js');
+function fixture({existing=0,previous=false,timeout=false,dry=false,count=1}={}) {
+ const entry={id:'e1',projectId:'project-2',date:'2026-11-16',start:'09:00',end:'10:00',nextDay:false,activity:'GLPI 1234',status:'ready',updatedAt:null};
+ const entries=Array.from({length:count},(_,i)=>({...entry,id:'e'+(i+1)}));
+ const document=T.validateBackup({schemaVersion:1,projects:T.seed(),entries});
+ const row=id=>({appointment:id,project:42,appointDate:entry.date,appointmentTime:'01:00',notes:T.description(entry,T.seed()[1]),deleted:false});
+ const rows=Array.from({length:existing},(_,i)=>row(i+1)),operations=[];
+ const call=async(base,route,opts={})=>{
+  operations.push({route,opts});
+  if(route.includes('get_automation_workspace'))return [{owner_id:'owner',revision:1,document}];
+  if(route.includes('/autentication/login'))return {result:{token:'TEST_TOKEN',idUser:7}};
+  if(route.includes('get-projects-assigned'))return {result:[{project:42,alias:T.seed()[1].techpro}]};
+  if(route.includes('user-appointment-config'))return {result:[{userAppointmentConfig:{dates:[{date:entry.date}],interval:['01:00']}}]};
+  if(route.includes('/appointment/all'))return {result:[...rows]};
+  if(route.includes('/appointment/create')){rows.push(row(rows.length+1));if(timeout)throw Error('timeout');return {result:null};}
+  if(route.includes('timesheet_automation_receipts')&&opts.method==='POST')return null;
+  if(route.includes('timesheet_automation_receipts'))return previous?[{entry_id:'e1',fingerprint:require('../automation/logic.cjs').makePlan(document,{from:entry.date,to:entry.date})[0].fingerprint,state:'prepared'}]:[];
+  if(route.includes('mark_timesheet_sent'))return true;
+  throw Error('Consulta inesperada: '+route);
+ };
+ return {operations,options:{env:{SUPABASE_SECRET_KEY:'test',TECHPRO_USERNAME:'test',TECHPRO_PASSWORD:'test',DRY_RUN:dry?'true':'false'},now:new Date('2026-11-23T11:00:00Z'),call,log:()=>{}}};
+}
+test('confirma a leitura do registro persistido antes de marcar enviado',async()=>{
+ const f=fixture();await run(f.options);
+ const routes=f.operations.map(o=>o.route);const write=routes.indexOf('/appointment/create');
+ assert(write>0);assert(routes.findIndex((r,i)=>i>write&&r.includes('/appointment/all'))<routes.findIndex(r=>r.includes('mark_timesheet_sent')));
+});
+test('resposta incerta não repete criação nem marca enviado',async()=>{
+ const f=fixture({timeout:true});await assert.rejects(run(f.options),/timeout/);
+ assert.equal(f.operations.filter(o=>o.route.includes('/appointment/create')).length,1);
+ assert.equal(f.operations.filter(o=>o.route.includes('mark_timesheet_sent')).length,0);
+});
+test('tentativa anterior sem registro confirmado bloqueia nova escrita',async()=>{
+ const f=fixture({previous:true});await assert.rejects(run(f.options),/tentativa anterior/);
+ assert.equal(f.operations.filter(o=>o.route.includes('/appointment/create')).length,0);
+});
+test('registro encontrado após falha é conciliado sem duplicar',async()=>{
+ const f=fixture({previous:true,existing:1});await run(f.options);
+ assert.equal(f.operations.filter(o=>o.route.includes('/appointment/create')).length,0);
+ assert.equal(f.operations.filter(o=>o.route.includes('mark_timesheet_sent')).length,1);
+});
+test('dois períodos iguais consomem um registro existente e criam só o segundo',async()=>{
+ const f=fixture({existing:1,count:2});await run(f.options);
+ assert.equal(f.operations.filter(o=>o.route.includes('/appointment/create')).length,1);
+ assert.equal(f.operations.filter(o=>o.route.includes('mark_timesheet_sent')).length,2);
+});
+test('conferência não grava no Tech Pro nem no Supabase',async()=>{
+ const f=fixture({dry:true});await run(f.options);
+ assert.equal(f.operations.filter(o=>o.opts.method==='POST'&&!o.route.includes('get_automation_workspace')&&!o.route.includes('/autentication/login')).length,0);
+});
