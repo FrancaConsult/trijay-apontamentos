@@ -1,6 +1,6 @@
 'use strict';
 // No browser, password, token, activity text or response body is written to logs.
-const {resolvePeriod,makePlan,matching,normalize}=require('./logic.cjs');
+const {resolvePeriod,allowedDuration,makePlan,matching,normalize}=require('./logic.cjs');
 const {isDeepStrictEqual}=require('node:util');
 const SB='https://ibakqnucwpdmzbwuaczz.supabase.co';
 const TP='https://trijayconsultoria.com.br/api';
@@ -68,9 +68,13 @@ async function run({env=process.env,now=new Date(),call=request,log=console.log}
     if(previous && previous.fingerprint!==item.fingerprint) throw Error('Um apontamento já processado foi alterado. Revise manualmente.');
     if(!match && previous) throw Error('Há uma tentativa anterior sem confirmação. Confira o Tech Pro antes de liberar uma nova tentativa.');
     if(!match) {
-      const duration=`${String(Math.floor(item.minutes/60)).padStart(2,'0')}:${String(item.minutes%60).padStart(2,'0')}`;
-      const allowed=configs.some(c=>c.userAppointmentConfig?.dates?.some(d=>String(d.date).slice(0,10)===item.entry.date) && c.userAppointmentConfig?.interval?.includes(duration));
-      if(!allowed) throw Error('Data ou duração não está liberada pelo Tech Pro. Nenhum limite será contornado.');
+      const duration=allowedDuration(configs,item.entry.date,item.minutes);
+      if(duration===null) {
+        const dates=configs.flatMap(c=>c.userAppointmentConfig?.dates||[]);
+        const intervals=configs.flatMap(c=>c.userAppointmentConfig?.interval||[]).filter(v=>typeof v==='string'&&/^[0-9:h., ]{1,12}$/i.test(v));
+        log(`Data disponível: ${dates.some(d=>String(d.date).slice(0,10)===item.entry.date)}. Opções de duração: ${[...new Set(intervals)].slice(0,6).join(', ')}.`);
+        throw Error('Data ou duração não está liberada pelo Tech Pro. Nenhum limite será contornado.');
+      }
       if(dry) continue;
       const fresh=await rpc('get_automation_workspace',{p_email:OWNER});
       const current=fresh[0]?.document?.entries?.find(e=>e.id===item.entry.id);
