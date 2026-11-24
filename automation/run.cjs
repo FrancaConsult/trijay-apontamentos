@@ -15,8 +15,9 @@ async function request(base,route,{method='GET',data,headers={}}={}) {
     try {const problem=await response.json();if(problem.code==='42501')reason=' Permissão insuficiente para a chave configurada.';else if(/invalid api key/i.test(String(problem.message)))reason=' Chave de API inválida.';} catch {}
     throw Error(`${service} recusou a operação (HTTP ${response.status}).${reason}`);
   }
-  let result; try {result=await response.json();} catch {throw Error('Resposta inesperada do serviço.');}
-  return result;
+  const body=await response.text();
+  if(!body.trim())return null;
+  try {return JSON.parse(body);} catch {throw Error('Resposta inesperada do serviço.');}
 }
 async function run({env=process.env,now=new Date(),call=request,log=console.log}={}) {
   const secret=env.SUPABASE_SECRET_KEY?.trim();
@@ -32,6 +33,8 @@ async function run({env=process.env,now=new Date(),call=request,log=console.log}
   const workspace=workspaces[0];
   if(!workspace&&!dry) throw Error('Entre no aplicativo e importe os dados para o banco antes da automação.');
   const period=resolvePeriod(env,now), plan=workspace?makePlan(workspace.document,period):[];
+  const resumePrepared=env.RESUME_PREPARED==='true';
+  if(resumePrepared&&(!env.MANUAL_FROM||period.from!==period.to))throw Error('A retomada conferida exige uma única data manual.');
   log(workspace?`Supabase conectado. Registros na conta: ${workspace.document.entries.length}.`:'Supabase conectado. Importação ainda pendente.');
   const pending=plan.filter(i=>i.entry.status==='ready');
   log(`Período: ${period.from} a ${period.to}. Prontos: ${pending.length}. Modo: ${dry?'conferência':'cadastro'}.`);
@@ -42,6 +45,8 @@ async function run({env=process.env,now=new Date(),call=request,log=console.log}
   // Mask the server-issued token in GitHub Actions before further work.
   log('::add-mask::'+auth.token);
   const tp=(route,opts={})=>call(TP,route,{...opts,headers:{Authorization:`Bearer ${auth.token}`}}).then(r=>{
+    if(r===null&&route==='/appointment/create')return null;
+    if(!r||typeof r!=='object')throw Error('Resposta do Tech Pro incompatível.');
     if(r.erroInterno && r.erroInterno!==0) throw Error('Tech Pro recusou a operação. Verifique permissões, datas e limites.');
     if(!Object.hasOwn(r,'result')) throw Error('Resposta do Tech Pro incompatível.'); return r.result;
   });
@@ -66,7 +71,10 @@ async function run({env=process.env,now=new Date(),call=request,log=console.log}
     if(item.entry.status==='sent') {if(match)used.add(String(match.appointment));continue;}
     const previous=receiptMap.get(item.entry.id);
     if(previous && previous.fingerprint!==item.fingerprint) throw Error('Um apontamento já processado foi alterado. Revise manualmente.');
-    if(!match && previous) throw Error('Há uma tentativa anterior sem confirmação. Confira o Tech Pro antes de liberar uma nova tentativa.');
+    if(!match && previous && !(resumePrepared&&previous.state==='prepared')) {
+      if(dry){log('Há uma tentativa pendente sem registro correspondente no Tech Pro; nenhuma nova gravação será feita nesta conferência.');continue;}
+      throw Error('Há uma tentativa anterior sem confirmação. Confira o Tech Pro antes de liberar uma nova tentativa.');
+    }
     if(!match) {
       const duration=allowedDuration(configs,item.entry.date,item.minutes);
       if(duration===null) {
@@ -79,8 +87,9 @@ async function run({env=process.env,now=new Date(),call=request,log=console.log}
       const fresh=await rpc('get_automation_workspace',{p_email:OWNER});
       const current=fresh[0]?.document?.entries?.find(e=>e.id===item.entry.id);
       if(!isDeepStrictEqual(current,item.entry)||!isDeepStrictEqual(fresh[0]?.document?.projects,workspace.document.projects)) throw Error('Os dados mudaram durante a execução. Confira e execute novamente.');
-      await sb('timesheet_automation_receipts',{method:'POST',data:{owner_id:workspace.owner_id,entry_id:item.entry.id,fingerprint:item.fingerprint,state:'prepared'}});
+      await sb(previous?'timesheet_automation_receipts?on_conflict=owner_id,entry_id':'timesheet_automation_receipts',{method:'POST',headers:previous?{Prefer:'resolution=merge-duplicates'}:{},data:{owner_id:workspace.owner_id,entry_id:item.entry.id,fingerprint:item.fingerprint,state:'prepared'}});
       const before=new Set(rows.map(r=>String(r.appointment)));
+      await sb(`timesheet_automation_receipts?owner_id=eq.${workspace.owner_id}&entry_id=eq.${encodeURIComponent(item.entry.id)}`,{method:'PATCH',data:{state:'uncertain'}});
       // Exactly one write. A failed or ambiguous response never triggers an automatic retry.
       await tp('/appointment/create',{method:'POST',data:{user:auth.idUser,project:projectId,appointDate:item.entry.date,appointmentTime:duration,notes:item.notes}});
       rows=await list();
@@ -97,5 +106,5 @@ async function run({env=process.env,now=new Date(),call=request,log=console.log}
   }
   log(dry?`Conferência concluída. Já encontrados: ${reconciled}. Nenhuma gravação realizada.`:`Concluído. Criados: ${created}. Conciliados: ${reconciled}.`);
 }
-module.exports={run};
+module.exports={run,request};
 if(require.main===module) run().catch(e=>{console.error('Falha: '+e.message);process.exitCode=1;});
