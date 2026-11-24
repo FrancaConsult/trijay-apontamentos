@@ -1,6 +1,6 @@
 'use strict';
 // No browser, password, token, activity text or response body is written to logs.
-const {previousWeek,makePlan,matching,normalize}=require('./logic.cjs');
+const {resolvePeriod,makePlan,matching,normalize}=require('./logic.cjs');
 const {isDeepStrictEqual}=require('node:util');
 const SB='https://ibakqnucwpdmzbwuaczz.supabase.co';
 const TP='https://trijayconsultoria.com.br/api';
@@ -31,7 +31,7 @@ async function run({env=process.env,now=new Date(),call=request,log=console.log}
   if(!Array.isArray(workspaces)||workspaces.length>1) throw Error('Resposta de conta inesperada do Supabase.');
   const workspace=workspaces[0];
   if(!workspace&&!dry) throw Error('Entre no aplicativo e importe os dados para o banco antes da automação.');
-  const period=previousWeek(now), plan=workspace?makePlan(workspace.document,period):[];
+  const period=resolvePeriod(env,now), plan=workspace?makePlan(workspace.document,period):[];
   log(workspace?`Supabase conectado. Registros na conta: ${workspace.document.entries.length}.`:'Supabase conectado. Importação ainda pendente.');
   const pending=plan.filter(i=>i.entry.status==='ready');
   log(`Período: ${period.from} a ${period.to}. Prontos: ${pending.length}. Modo: ${dry?'conferência':'cadastro'}.`);
