@@ -1,7 +1,12 @@
 'use strict';
 const crypto = require('node:crypto');
 const T = require('../core.js');
-const normalize = s => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
+function decode(s) {
+  let text=String(s??'');
+  for(let i=0;i<5;i++) {const next=text.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/&nbsp;/g,' ').replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(Number(n))).replace(/&#x([\da-f]+);/gi,(_,n)=>String.fromCharCode(parseInt(n,16)));if(next===text)break;text=next;}
+  return text;
+}
+const normalize = s => decode(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
 function previousWeek(now = new Date()) {
   const date = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
   const part = k => date.find(p=>p.type===k).value;
@@ -41,7 +46,7 @@ function makePlan(document, period) {
 }
 function matching(row,item,projectId) {
   const time=String(row.appointmentTime??'').split(':');
-  const minutes=time.length===2 ? Number(time[0])*60+Number(time[1]) : NaN;
-  return !row.deleted && String(row.project)===String(projectId) && String(row.appointDate).slice(0,10)===item.entry.date && minutes===item.minutes && String(row.notes??'').replace(/\s+/g,' ').trim()===item.notes.replace(/\s+/g,' ').trim();
+  const minutes=(time.length===2 || (time.length===3&&Number(time[2])===0)) ? Number(time[0])*60+Number(time[1]) : NaN;
+  return !row.deleted && String(row.project)===String(projectId) && String(row.appointDate).slice(0,10)===item.entry.date && minutes===item.minutes && decode(row.notes).replace(/\s+/g,' ').trim()===item.notes.replace(/\s+/g,' ').trim();
 }
 module.exports={previousWeek,projectFor,makePlan,matching,normalize};
