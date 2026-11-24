@@ -16,6 +16,10 @@ on:
         description: 'Data final opcional (AAAA-MM-DD). Vazio: igual à inicial.'
         type: string
         required: false
+      resume_prepared:
+        description: 'Retomar tentativa preparada após conferir o Tech Pro (um dia manual)'
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -40,4 +44,5 @@ jobs:
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
           MANUAL_FROM: ${{ github.event_name == 'workflow_dispatch' && inputs.from_date || '' }}
           MANUAL_TO: ${{ github.event_name == 'workflow_dispatch' && inputs.to_date || '' }}
+          RESUME_PREPARED: ${{ github.event_name == 'workflow_dispatch' && inputs.resume_prepared && 'true' || 'false' }}
         run: node automation/run.cjs
