@@ -1,0 +1,14 @@
+name: Validar aplicativo e automação
+on: [push, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - run: node --test tests/*.cjs
+      - run: node --check app.js && node --check cloud.js && node --check automation/run.cjs
