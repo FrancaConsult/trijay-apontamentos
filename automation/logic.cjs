@@ -49,4 +49,12 @@ function matching(row,item,projectId) {
   const minutes=(time.length===2 || (time.length===3&&Number(time[2])===0)) ? Number(time[0])*60+Number(time[1]) : NaN;
   return !row.deleted && String(row.project)===String(projectId) && String(row.appointDate).slice(0,10)===item.entry.date && minutes===item.minutes && decode(row.notes).replace(/\s+/g,' ').trim()===item.notes.replace(/\s+/g,' ').trim();
 }
-module.exports={previousWeek,projectFor,makePlan,matching,normalize};
+function resolvePeriod(env,now=new Date()) {
+  const from=String(env.MANUAL_FROM||'').trim(), to=String(env.MANUAL_TO||'').trim();
+  if(!from&&!to)return previousWeek(now);
+  const end=to||from;
+  if(!T.validDate(from)||!T.validDate(end)||end<from)throw Error('Informe um período válido no formato AAAA-MM-DD.');
+  if((Date.parse(end+'T12:00:00Z')-Date.parse(from+'T12:00:00Z'))/86400000>30)throw Error('O período manual deve ter no máximo 31 dias.');
+  return {from,to:end};
+}
+module.exports={previousWeek,resolvePeriod,projectFor,makePlan,matching,normalize};
