@@ -13,24 +13,24 @@ async function request(base,route,{method='GET',data,headers={}}={}) {
   let result; try {result=await response.json();} catch {throw Error('Resposta inesperada do serviço.');}
   return result;
 }
-async function run() {
-  const secret=process.env.SUPABASE_SECRET_KEY;
-  if(!secret||!process.env.TECHPRO_USERNAME||!process.env.TECHPRO_PASSWORD) throw Error('Cadastre os três segredos exigidos no repositório.');
-  const dry=process.env.DRY_RUN!=='false';
-  const sb=(route,opts={})=>request(SB,'/rest/v1/'+route,{...opts,headers:{apikey:secret,...opts.headers}});
+async function run({env=process.env,now=new Date(),call=request,log=console.log}={}) {
+  const secret=env.SUPABASE_SECRET_KEY;
+  if(!secret||!env.TECHPRO_USERNAME||!env.TECHPRO_PASSWORD) throw Error('Cadastre os três segredos exigidos no repositório.');
+  const dry=env.DRY_RUN!=='false';
+  const sb=(route,opts={})=>call(SB,'/rest/v1/'+route,{...opts,headers:{apikey:secret,...opts.headers}});
   const rpc=(name,data)=>sb('rpc/'+name,{method:'POST',data});
   const workspaces=await rpc('get_automation_workspace',{p_email:OWNER});
   if(!Array.isArray(workspaces)||workspaces.length!==1) throw Error('Entre no aplicativo e importe os dados para o banco antes da automação.');
-  const workspace=workspaces[0], period=previousWeek(), plan=makePlan(workspace.document,period);
+  const workspace=workspaces[0], period=previousWeek(now), plan=makePlan(workspace.document,period);
   const pending=plan.filter(i=>i.entry.status==='ready');
-  console.log(`Período: ${period.from} a ${period.to}. Prontos: ${pending.length}. Modo: ${dry?'conferência':'cadastro'}.`);
+  log(`Período: ${period.from} a ${period.to}. Prontos: ${pending.length}. Modo: ${dry?'conferência':'cadastro'}.`);
   if(!pending.length) return;
-  const login=await request(TP,'/autentication/login',{method:'POST',data:{user:process.env.TECHPRO_USERNAME,password:process.env.TECHPRO_PASSWORD,log:'',platform:'WEB',language:'PTBR'}});
+  const login=await call(TP,'/autentication/login',{method:'POST',data:{user:env.TECHPRO_USERNAME,password:env.TECHPRO_PASSWORD,log:'',platform:'WEB',language:'PTBR'}});
   const auth=login.result;
   if(!auth?.token||!Number.isInteger(auth.idUser)) throw Error('Não foi possível autenticar no Tech Pro.');
   // Mask the server-issued token in GitHub Actions before further work.
-  console.log('::add-mask::'+auth.token);
-  const tp=(route,opts={})=>request(TP,route,{...opts,headers:{Authorization:`Bearer ${auth.token}`}}).then(r=>{
+  log('::add-mask::'+auth.token);
+  const tp=(route,opts={})=>call(TP,route,{...opts,headers:{Authorization:`Bearer ${auth.token}`}}).then(r=>{
     if(r.erroInterno && r.erroInterno!==0) throw Error('Tech Pro recusou a operação. Verifique permissões, datas e limites.');
     if(!Object.hasOwn(r,'result')) throw Error('Resposta do Tech Pro incompatível.'); return r.result;
   });
@@ -78,6 +78,7 @@ async function run() {
       if(marked!==true) throw Error('O registro foi localizado no Tech Pro, mas mudou no aplicativo. Revise o status.');
     }
   }
-  console.log(dry?`Conferência concluída. Já encontrados: ${reconciled}. Nenhuma gravação realizada.`:`Concluído. Criados: ${created}. Conciliados: ${reconciled}.`);
+  log(dry?`Conferência concluída. Já encontrados: ${reconciled}. Nenhuma gravação realizada.`:`Concluído. Criados: ${created}. Conciliados: ${reconciled}.`);
 }
-run().catch(e=>{console.error('Falha: '+e.message);process.exitCode=1;});
+module.exports={run};
+if(require.main===module) run().catch(e=>{console.error('Falha: '+e.message);process.exitCode=1;});
