@@ -2,6 +2,13 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const T=require('../core.js');
 const L=require('../automation/logic.cjs');
+test('execução manual permite um dia específico sem mudar a semana padrão',()=>{
+  assert.deepEqual(L.resolvePeriod({MANUAL_FROM:'2026-11-24'}),{from:'2026-11-24',to:'2026-11-24'});
+  assert.deepEqual(L.resolvePeriod({},new Date('2026-11-23T11:00:00Z')),{from:'2026-11-16',to:'2026-11-22'});
+});
+test('período manual recusa datas inválidas, invertidas ou extensas',()=>{
+  for(const env of [{MANUAL_FROM:'2026-02-30'},{MANUAL_TO:'2026-11-24'},{MANUAL_FROM:'2026-11-24',MANUAL_TO:'2026-11-23'},{MANUAL_FROM:'2026-01-01',MANUAL_TO:'2026-12-31'}])assert.throws(()=>L.resolvePeriod(env));
+});
 test('semana anterior usa São Paulo inclusive perto da meia-noite UTC',()=>{
   const monday=L.previousWeek(new Date('2026-11-23T11:00:00Z'));
   assert.equal(monday.from,'2026-11-16');assert.equal(monday.to,'2026-11-22');
