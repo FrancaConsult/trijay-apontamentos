@@ -3,11 +3,12 @@ const assert=require('node:assert/strict');
 const T=require('../core.js');
 const L=require('../automation/logic.cjs');
 test('usa a opção exata do Tech Pro, com ou sem segundos, sem ampliar datas ou durações',()=>{
-  const configs=[{userAppointmentConfig:{dates:[{date:'2026-11-24'}],interval:['00:30:00','01:00','01:30:00']}}];
+  const configs=[{userAppointmentConfig:{dates:[{date:'2026-11-24'}],interval:['00:30:00','01:00','01:30:00','02h30']}}];
   assert.equal(L.allowedDuration(configs,'2026-11-24',90),'01:30:00');
   assert.equal(L.allowedDuration(configs,'2026-11-24',60),'01:00');
   assert.equal(L.allowedDuration(configs,'2026-11-25',90),null);
-  assert.equal(L.allowedDuration(configs,'2026-11-24',150),null);
+  assert.equal(L.allowedDuration(configs,'2026-11-24',150),'02h30');
+  assert.equal(L.allowedDuration(configs,'2026-11-24',180),null);
 });
 test('execução manual permite um dia específico sem mudar a semana padrão',()=>{
   assert.deepEqual(L.resolvePeriod({MANUAL_FROM:'2026-11-24'}),{from:'2026-11-24',to:'2026-11-24'});
@@ -39,4 +40,5 @@ test('conciliação exige data, projeto, duração e descrição e ignora exclu�
   const [item]=L.makePlan({schemaVersion:1,projects:T.seed(),entries:[entry()]},{from:'2026-11-16',to:'2026-11-22'});
   const row={project:42,appointDate:'2026-11-16T00:00:00',appointmentTime:'01:00',notes:item.notes,deleted:false};
   assert.equal(L.matching(row,item,42),true);assert.equal(L.matching({...row,project:43},item,42),false);assert.equal(L.matching({...row,appointmentTime:'00:30'},item,42),false);assert.equal(L.matching({...row,deleted:true},item,42),false);
+  assert.equal(L.matching({...row,appointmentTime:'01h00'},item,42),true);
 });
