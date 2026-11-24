@@ -9,15 +9,23 @@ async function request(base,route,{method='GET',data,headers={}}={}) {
   let response;
   try {response=await fetch(base+route,{method,headers:{Accept:'application/json','Content-Type':'application/json',...headers},body:data===undefined?undefined:JSON.stringify(data),signal:AbortSignal.timeout(45000),redirect:'error'});}
   catch {throw Error('Falha de conexão; confira a execução antes de tentar novamente.');}
-  if(!response.ok) throw Error(`Serviço recusou a operação (HTTP ${response.status}).`);
+  if(!response.ok) {
+    const service=base===SB?'Supabase':'Tech Pro';
+    let reason='';
+    try {const problem=await response.json();if(problem.code==='42501')reason=' Permissão insuficiente para a chave configurada.';else if(/invalid api key/i.test(String(problem.message)))reason=' Chave de API inválida.';} catch {}
+    throw Error(`${service} recusou a operação (HTTP ${response.status}).${reason}`);
+  }
   let result; try {result=await response.json();} catch {throw Error('Resposta inesperada do serviço.');}
   return result;
 }
 async function run({env=process.env,now=new Date(),call=request,log=console.log}={}) {
-  const secret=env.SUPABASE_SECRET_KEY;
+  const secret=env.SUPABASE_SECRET_KEY?.trim();
   if(!secret||!env.TECHPRO_USERNAME||!env.TECHPRO_PASSWORD) throw Error('Cadastre os três segredos exigidos no repositório.');
   const dry=env.DRY_RUN!=='false';
-  const sb=(route,opts={})=>call(SB,'/rest/v1/'+route,{...opts,headers:{apikey:secret,...opts.headers}});
+  if(secret.startsWith('sb_publishable_')) throw Error('SUPABASE_SECRET_KEY contém uma chave publicável. Use a chave Secret keys do projeto.');
+  // New opaque keys go only in apikey; legacy service-role JWTs also need Bearer.
+  const serviceHeaders={apikey:secret,...(secret.startsWith('eyJ')?{Authorization:`Bearer ${secret}`}:{})};
+  const sb=(route,opts={})=>call(SB,'/rest/v1/'+route,{...opts,headers:{...serviceHeaders,...opts.headers}});
   const rpc=(name,data)=>sb('rpc/'+name,{method:'POST',data});
   const workspaces=await rpc('get_automation_workspace',{p_email:OWNER});
   if(!Array.isArray(workspaces)||workspaces.length!==1) throw Error('Entre no aplicativo e importe os dados para o banco antes da automação.');
