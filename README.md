@@ -29,6 +29,8 @@ O workflow usa três GitHub Actions repository secrets:
 
 Execute primeiro Actions → Apontamentos semanais Tech Pro → Run workflow com Somente conferir marcado. Depois de conferir o resultado, a execução manual com a opção desmarcada realiza cadastros. O agendamento realiza cadastros. Confira falhas em Actions e habilite notificações do GitHub para workflows.
 
+Para cadastrar um dia ou período específico antes da segunda-feira, use os campos opcionais Data inicial e Data final no Run workflow, em formato AAAA-MM-DD. A data final vazia usa a mesma data inicial. Sem datas, permanece a semana anterior. O agendamento ignora esses campos manuais. Confira primeiro com Somente conferir marcado; desmarque para realizar o cadastro.
+
 Cada gravação é verificada consultando os registros persistidos no Tech Pro antes de marcar Cadastrado. Registros existentes são conciliados por data, projeto, duração e descrição, preservando a quantidade de períodos idênticos. Uma tentativa sem confirmação bloqueia nova criação até revisão manual; o recibo correspondente em timesheet_automation_receipts permite investigar. Nunca remova um recibo sem conferir o destino. O aplicativo não edita nem exclui registros do Tech Pro automaticamente. Alterações após cadastro exigem ajuste no destino.
 
 Chamados GLPI/GPLI usam AMS do cliente; GLPI 7014 de Taurus Helmets usa Integração GoDeep Hub. CBC Interno Teste ZHYP usa Interno. Não são alteradas datas ou projetos para contornar limites.
