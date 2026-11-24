@@ -28,8 +28,11 @@ async function run({env=process.env,now=new Date(),call=request,log=console.log}
   const sb=(route,opts={})=>call(SB,'/rest/v1/'+route,{...opts,headers:{...serviceHeaders,...opts.headers}});
   const rpc=(name,data)=>sb('rpc/'+name,{method:'POST',data});
   const workspaces=await rpc('get_automation_workspace',{p_email:OWNER});
-  if(!Array.isArray(workspaces)||workspaces.length!==1) throw Error('Entre no aplicativo e importe os dados para o banco antes da automação.');
-  const workspace=workspaces[0], period=previousWeek(now), plan=makePlan(workspace.document,period);
+  if(!Array.isArray(workspaces)||workspaces.length>1) throw Error('Resposta de conta inesperada do Supabase.');
+  const workspace=workspaces[0];
+  if(!workspace&&!dry) throw Error('Entre no aplicativo e importe os dados para o banco antes da automação.');
+  const period=previousWeek(now), plan=workspace?makePlan(workspace.document,period):[];
+  log(workspace?`Supabase conectado. Registros na conta: ${workspace.document.entries.length}.`:'Supabase conectado. Importação ainda pendente.');
   const pending=plan.filter(i=>i.entry.status==='ready');
   log(`Período: ${period.from} a ${period.to}. Prontos: ${pending.length}. Modo: ${dry?'conferência':'cadastro'}.`);
   if(!pending.length&&!dry) return;
@@ -47,6 +50,8 @@ async function run({env=process.env,now=new Date(),call=request,log=console.log}
   if(!Array.isArray(projects)||!Array.isArray(configs)) throw Error('Configuração do Tech Pro incompatível.');
   const list=async()=>{const rows=await tp(`/appointment/all?user=${auth.idUser}&isDeleted=false`);if(!Array.isArray(rows))throw Error('Lista de apontamentos inválida.');return rows;};
   let rows=await list(); const used=new Set();
+  log('Tech Pro conectado. Projetos, configurações e registros consultados.');
+  if(!workspace) throw Error('Entre no aplicativo e importe os dados para o banco antes da automação.');
   const receipts=await sb(`timesheet_automation_receipts?owner_id=eq.${workspace.owner_id}&select=entry_id,fingerprint,state`);
   const receiptMap=new Map(receipts.map(r=>[r.entry_id,r]));
   // Reserve matches for sent entries first, preserving the multiplicity of identical periods.
