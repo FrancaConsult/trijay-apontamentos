@@ -17,9 +17,9 @@ Em Supabase → Authentication → Emails → SMTP Settings, use o remetente val
 
 Depois de salvar e testar o envio, o login por link mantém as mesmas regras privadas do banco. Não habilite leitura ou escrita anônima nas tabelas. O destinatário é fixo no código e também é verificado pelo banco.
 
-## Rotina semanal
+## Rotina diária
 
-O workflow **Apontamentos semanais Tech Pro** roda às segundas-feiras às 11:00 UTC (08:00 em São Paulo). O GitHub pode atrasar o início do agendamento. Busca apenas a semana anterior, de segunda a domingo, com status Pronto para cadastro. Rascunhos não são enviados.
+O workflow **Apontamentos diários Tech Pro** roda todos os dias às 21h05 de São Paulo (00h05 UTC do dia seguinte), inclusive fins de semana. O GitHub pode atrasar o início do agendamento. Busca apenas os apontamentos do dia com status Pronto para cadastro. Se a execução noturna atrasar e começar depois da meia-noite, mantém a data do último disparo de 21h05, até o próximo horário diário. Rascunhos não são enviados.
 
 O workflow usa três GitHub Actions repository secrets:
 
@@ -27,9 +27,9 @@ O workflow usa três GitHub Actions repository secrets:
 - TECHPRO_PASSWORD
 - SUPABASE_SECRET_KEY: chave secreta de backend do projeto Supabase. Nunca use essa chave no navegador, em arquivos ou em mensagens. A chave publicável em config.js é própria para uso público; RLS e funções autenticadas restringem os dados.
 
-Execute primeiro Actions → Apontamentos semanais Tech Pro → Run workflow com Somente conferir marcado. Depois de conferir o resultado, a execução manual com a opção desmarcada realiza cadastros. O agendamento realiza cadastros. Confira falhas em Actions e habilite notificações do GitHub para workflows.
+Execute primeiro Actions → Apontamentos diários Tech Pro → Run workflow com Somente conferir marcado. Depois de conferir o resultado, a execução manual com a opção desmarcada realiza cadastros. O agendamento realiza cadastros. Confira falhas em Actions e habilite notificações do GitHub para workflows.
 
-Para cadastrar um dia ou período específico antes da segunda-feira, use os campos opcionais Data inicial e Data final no Run workflow, em formato AAAA-MM-DD. A data final vazia usa a mesma data inicial. Sem datas, permanece a semana anterior. O agendamento ignora esses campos manuais. Confira primeiro com Somente conferir marcado; desmarque para realizar o cadastro.
+Para cadastrar outro dia ou período específico, use os campos opcionais Data inicial e Data final no Run workflow, em formato AAAA-MM-DD. A data final vazia usa a mesma data inicial. Na execução manual sem datas, usa o dia atual em São Paulo. O agendamento ignora esses campos manuais. Confira primeiro com Somente conferir marcado; desmarque para realizar o cadastro.
 
 Cada gravação é verificada consultando os registros persistidos no Tech Pro antes de marcar Cadastrado. Registros existentes são conciliados por data, projeto, duração e descrição, preservando a quantidade de períodos idênticos. Uma tentativa sem confirmação bloqueia nova criação até revisão manual; o recibo correspondente em timesheet_automation_receipts permite investigar. Nunca remova um recibo sem conferir o destino. O aplicativo não edita nem exclui registros do Tech Pro automaticamente. Alterações após cadastro exigem ajuste no destino.
 
@@ -43,4 +43,4 @@ Nenhum registro de produção deve ser incluído em commits, testes, logs ou art
 
 ## Validação
 
-Execute node --test tests/*.cjs. Cobertura: horários, datas, coluna H, exportação, backup, semana em São Paulo, AMS e exceções, multiplicidade e conciliação. A integração real requer usuário, dados importados e os três segredos.
+Execute node --test tests/*.cjs. Cobertura: horários, datas, coluna H, exportação, backup, dia em São Paulo e atraso após meia-noite, AMS e exceções, multiplicidade e conciliação. A integração real requer usuário, dados importados e os três segredos.
