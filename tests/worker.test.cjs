@@ -21,7 +21,7 @@ function fixture({existing=0,previous=false,timeout=false,dry=false,count=1,empt
   if(route.includes('mark_timesheet_sent'))return true;
   throw Error('Consulta inesperada: '+route);
  };
- return {operations,options:{env:{SUPABASE_SECRET_KEY:'test',TECHPRO_USERNAME:'test',TECHPRO_PASSWORD:'test',DRY_RUN:dry?'true':'false'},now:new Date('2026-11-23T11:00:00Z'),call,log:()=>{}}};
+ return {operations,options:{env:{SUPABASE_SECRET_KEY:'test',TECHPRO_USERNAME:'test',TECHPRO_PASSWORD:'test',DRY_RUN:dry?'true':'false'},now:new Date('2026-11-17T00:05:00Z'),call,log:()=>{}}};
 }
 test('confirma a leitura do registro persistido antes de marcar enviado',async()=>{
  const f=fixture();await run(f.options);
