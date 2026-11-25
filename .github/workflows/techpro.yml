@@ -1,7 +1,8 @@
-name: Apontamentos semanais Tech Pro
+name: Apontamentos diários Tech Pro
 on:
   schedule:
-    - cron: '0 11 * * 1'
+    # 00:05 UTC = 21:05 do dia anterior em São Paulo.
+    - cron: '5 0 * * *'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -9,7 +10,7 @@ on:
         type: boolean
         default: true
       from_date:
-        description: 'Data inicial opcional (AAAA-MM-DD). Vazio: semana anterior.'
+        description: 'Data inicial opcional (AAAA-MM-DD). Vazio: dia atual em São Paulo.'
         type: string
         required: false
       to_date:
@@ -36,12 +37,13 @@ jobs:
           node-version: '24'
       - name: Validar regras
         run: node --test tests/*.cjs
-      - name: Conferir e cadastrar a semana anterior
+      - name: Conferir e cadastrar os apontamentos do dia
         env:
           TECHPRO_USERNAME: ${{ secrets.TECHPRO_USERNAME }}
           TECHPRO_PASSWORD: ${{ secrets.TECHPRO_PASSWORD }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
+          TRIGGER_KIND: ${{ github.event_name }}
           MANUAL_FROM: ${{ github.event_name == 'workflow_dispatch' && inputs.from_date || '' }}
           MANUAL_TO: ${{ github.event_name == 'workflow_dispatch' && inputs.to_date || '' }}
           RESUME_PREPARED: ${{ github.event_name == 'workflow_dispatch' && inputs.resume_prepared && 'true' || 'false' }}
