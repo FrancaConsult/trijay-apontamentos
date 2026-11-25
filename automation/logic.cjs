@@ -7,13 +7,14 @@ function decode(s) {
   return text;
 }
 const normalize = s => decode(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
-function previousWeek(now = new Date()) {
-  const date = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
+function dailyPeriod(now = new Date(),scheduled=false) {
+  const date = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(now);
   const part = k => date.find(p=>p.type===k).value;
-  const end = new Date(`${part('year')}-${part('month')}-${part('day')}T12:00:00Z`);
-  end.setUTCDate(end.getUTCDate()-((end.getUTCDay()+6)%7)-1);
-  const start = new Date(end); start.setUTCDate(start.getUTCDate()-6);
-  return {from:start.toISOString().slice(0,10),to:end.toISOString().slice(0,10)};
+  const day = new Date(`${part('year')}-${part('month')}-${part('day')}T12:00:00Z`);
+  // A queued nightly run before the next 21:05 still belongs to the prior day.
+  if(scheduled&&Number(part('hour'))*60+Number(part('minute'))<21*60+5)day.setUTCDate(day.getUTCDate()-1);
+  const iso=day.toISOString().slice(0,10);
+  return {from:iso,to:iso};
 }
 function projectFor(entry, projects) {
   const selected = projects.find(p=>p.id===entry.projectId);
@@ -54,7 +55,7 @@ function techproMinutes(value) {
 }
 function resolvePeriod(env,now=new Date()) {
   const from=String(env.MANUAL_FROM||'').trim(), to=String(env.MANUAL_TO||'').trim();
-  if(!from&&!to)return previousWeek(now);
+  if(!from&&!to)return dailyPeriod(now,env.TRIGGER_KIND==='schedule');
   const end=to||from;
   if(!T.validDate(from)||!T.validDate(end)||end<from)throw Error('Informe um período válido no formato AAAA-MM-DD.');
   if((Date.parse(end+'T12:00:00Z')-Date.parse(from+'T12:00:00Z'))/86400000>30)throw Error('O período manual deve ter no máximo 31 dias.');
@@ -71,4 +72,4 @@ function allowedDuration(configs,date,minutes) {
   }
   return null;
 }
-module.exports={previousWeek,resolvePeriod,allowedDuration,projectFor,makePlan,matching,normalize};
+module.exports={dailyPeriod,resolvePeriod,allowedDuration,projectFor,makePlan,matching,normalize};
